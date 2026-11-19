@@ -56,8 +56,9 @@ class IconExtractor(
                 log("Найден manifest: $manifestUrl", false, false)
                 val manifestText = fetchText(manifestUrl)
                 if (manifestText != null) {
-                    parseManifestIcons(manifestText, manifestUrl).forEach { add(it) }
-                    log("Иконок в manifest: ${parseManifestIcons(manifestText, manifestUrl).size}", false, false)
+                    val manifestIcons = parseManifestIcons(manifestText, manifestUrl)
+                    manifestIcons.forEach { add(it) }
+                    log("Иконок в manifest: ${manifestIcons.size}", false, false)
                 } else {
                     log("Не удалось загрузить manifest", true, false)
                 }
@@ -92,7 +93,7 @@ class IconExtractor(
         val items = mutableListOf<IconItem>()
         limited.forEachIndexed { index, d ->
             log("Загрузка ${index + 1}/${limited.size}: ${shortUrl(d.url)}", false, false)
-            val bytes = fetchBytes(d.url)
+            val bytes = fetchBytes(d.url, normalized)
             val bitmap = bytes?.let { decodeBitmap(it) }?.asImageBitmap()
             if (bytes == null) {
                 log("Ошибка загрузки: ${shortUrl(d.url)}", true, false)
@@ -140,16 +141,25 @@ class IconExtractor(
         null
     }
 
-    private fun fetchBytes(url: String): ByteArray? = try {
-        val req = Request.Builder()
-            .url(url)
-            .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36")
-            .build()
-        client.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful) null else resp.body?.bytes()
+    private fun fetchBytes(url: String, referer: String): ByteArray? {
+        // Некоторые сайты (Teable/S3) отдают изображения только с правильным Referer.
+        val attempts = listOf(referer, "")
+        for (ref in attempts) {
+            val result = try {
+                val builder = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36")
+                    .header("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
+                if (ref.isNotBlank()) builder.header("Referer", ref)
+                client.newCall(builder.build()).execute().use { resp ->
+                    if (resp.isSuccessful) resp.body?.bytes() else null
+                }
+            } catch (_: Exception) {
+                null
+            }
+            if (result != null) return result
         }
-    } catch (_: Exception) {
-        null
+        return null
     }
 
     private fun decodeBitmap(bytes: ByteArray) = try {

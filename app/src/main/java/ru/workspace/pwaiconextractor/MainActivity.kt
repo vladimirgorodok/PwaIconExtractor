@@ -243,19 +243,37 @@ fun MainScreen(vm: MainViewModel = viewModel()) {
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { folderPicker.launch(null) }, enabled = !vm.isBusy) {
-                            Icon(Icons.Default.FolderOpen, contentDescription = null)
-                            Spacer(Modifier.width(6.dp))
-                            Text("Выбрать папку")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { folderPicker.launch(null) },
+                            enabled = !vm.isBusy,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                "Выбрать папку",
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                softWrap = false
+                            )
                         }
                         Button(
                             onClick = { vm.save(context) },
-                            enabled = !vm.isBusy && vm.saveTreeUri != null && selectedCount > 0
+                            enabled = !vm.isBusy && vm.saveTreeUri != null && selectedCount > 0,
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Icon(Icons.Default.Save, contentDescription = null)
-                            Spacer(Modifier.width(6.dp))
-                            Text("Сохранить ($selectedCount)")
+                            Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                "Сохранить ($selectedCount)",
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                softWrap = false
+                            )
                         }
                     }
                 }
