@@ -135,8 +135,7 @@ class MainViewModel : ViewModel() {
         }
     }
 
-    fun loadBase44Library() {
-        val key = apiKey.trim()
+    private fun loadBase44Library(key: String) {
         val appId = IconExtractor.extractAppId(appUrl)
         if (key.isBlank()) {
             appendLog("Введите API-ключ Base44", isError = true)

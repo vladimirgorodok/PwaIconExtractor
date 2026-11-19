@@ -163,14 +163,14 @@ class TeableExtractor(
             return null
         }
         if (bases.length() == 1) {
-            return bases.optJSONObject(0)?.optString("id", "").takeIf { it.isNotBlank() }
+            return bases.optJSONObject(0)?.optString("id", "")?.takeIf { it.isNotBlank() }
         }
         log("Доступно баз: ${bases.length()}. Используется первая.", false, false)
         for (i in 0 until minOf(10, bases.length())) {
             val b = bases.optJSONObject(i) ?: continue
             log("  ${b.optString("name", "")} — ${b.optString("id", "")}", false, false)
         }
-        return bases.optJSONObject(0)?.optString("id", "").takeIf { it.isNotBlank() }
+        return bases.optJSONObject(0)?.optString("id", "")?.takeIf { it.isNotBlank() }
     }
 
     private fun signUrls(
