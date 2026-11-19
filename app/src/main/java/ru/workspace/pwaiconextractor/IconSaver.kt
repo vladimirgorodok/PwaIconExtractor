@@ -73,6 +73,9 @@ class IconSaver(
             IconSource.OG_IMAGE -> "og"
             IconSource.TWITTER_IMAGE -> "twitter"
             IconSource.IMG_TAG -> "img"
+            IconSource.DIRECT -> "image"
+            IconSource.BASE44 -> "base44"
+            IconSource.TEABLE -> "teable"
         }
         val sizePart = item.sizeLabel.takeIf { it.isNotBlank() && it != "—" }
             ?.replace(Regex("[^A-Za-z0-9x]+"), "") ?: ""

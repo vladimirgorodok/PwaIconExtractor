@@ -9,6 +9,9 @@ enum class IconSource(val label: String) {
     OG_IMAGE("og:image"),
     TWITTER_IMAGE("twitter:image"),
     IMG_TAG("img"),
+    DIRECT("прямая ссылка"),
+    BASE44("медиатека Base44"),
+    TEABLE("вложения Teable"),
 }
 
 data class IconItem(

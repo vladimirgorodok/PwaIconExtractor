@@ -117,6 +117,111 @@ class IconExtractor(
         return items
     }
 
+    /** Загружает все изображения медиатеки Base44 по app_id через Apps API. */
+    fun extractBase44Assets(appId: String, apiKey: String): List<IconItem> {
+        log("Запрос медиатеки Base44, app_id: $appId", false, false)
+        val assets = fetchAssets(appId, apiKey) ?: return emptyList()
+        log("Получено файлов в медиатеке: ${assets.length()}", false, false)
+
+        val imageAssets = mutableListOf<Triple<String, String, String>>()
+        for (i in 0 until assets.length()) {
+            val obj = assets.optJSONObject(i) ?: continue
+            val fileName = obj.optString("file_name", "")
+            val url = obj.optString("file_url", "")
+            val type = obj.optString("file_type", "")
+            if (url.isBlank() || !isImageAsset(fileName, url, type)) continue
+            imageAssets.add(Triple(url, fileName, type))
+        }
+        log("Изображений в медиатеке: ${imageAssets.size}", false, false)
+        if (imageAssets.isEmpty()) {
+            log("Изображений не найдено", true, false)
+            return emptyList()
+        }
+
+        val items = mutableListOf<IconItem>()
+        imageAssets.forEachIndexed { index, (url, fileName, type) ->
+            log("Загрузка ${index + 1}/${imageAssets.size}: $fileName", false, false)
+            val bytes = fetchBytes(url, "https://app.base44.com/")
+            val bitmap = bytes?.let { decodeBitmap(it) }?.asImageBitmap()
+            if (bytes == null) log("Ошибка загрузки: $fileName", true, false)
+            items.add(
+                IconItem(
+                    id = UUID.randomUUID().toString(),
+                    url = url,
+                    sizeLabel = bitmap?.let { "${it.width}x${it.height}" }
+                        ?: type.uppercase(Locale.ROOT).ifBlank { "—" },
+                    mimeType = null,
+                    source = IconSource.BASE44,
+                    bytes = bytes,
+                    bitmap = bitmap,
+                    selected = bytes != null,
+                )
+            )
+        }
+        val ok = items.count { it.bytes != null }
+        log("Медиатека загружена: успешно $ok из ${items.size}", false, true)
+        return items
+    }
+
+    private fun fetchAssets(appId: String, apiKey: String): JSONArray? {
+        val url = "https://app.base44.com/api/apps/$appId/assets"
+        val attempts = listOf(
+            "Authorization" to "Bearer $apiKey",
+            "api_key" to apiKey
+        )
+        for ((header, value) in attempts) {
+            try {
+                val req = Request.Builder()
+                    .url(url)
+                    .header(header, value)
+                    .header("Accept", "application/json")
+                    .build()
+                client.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful) {
+                        val body = resp.body?.string().orEmpty()
+                        return try {
+                            JSONArray(body)
+                        } catch (_: Exception) {
+                            log("Не удалось разобрать ответ медиатеки", true, false)
+                            null
+                        }
+                    }
+                    log("Ошибка Base44 API: HTTP ${resp.code}", true, false)
+                }
+            } catch (e: Exception) {
+                log("Ошибка запроса Base44 API: ${e.message}", true, false)
+            }
+        }
+        return null
+    }
+
+    private fun isImageAsset(fileName: String, url: String, type: String): Boolean {
+        val ext = type.lowercase(Locale.ROOT).ifBlank {
+            (fileName.substringAfterLast('.', "").ifBlank { url.substringAfterLast('.', "") })
+                .lowercase(Locale.ROOT)
+        }
+        return ext in setOf("png", "jpg", "jpeg", "webp", "gif", "svg", "ico", "bmp", "avif", "heic")
+    }
+
+    companion object {
+        /** Извлекает app_id из ссылки на файл Base44, из app.base44.com/apps/<id> или из чистого ID. */
+        fun extractAppId(input: String): String? {
+            val s = input.trim()
+            if (Regex("^[0-9a-fA-F]{24}$").matches(s)) return s
+
+            val patterns = listOf(
+                Regex("""media\.base44\.com/(?:images|files)/public/([0-9a-fA-F]{24})/""", RegexOption.IGNORE_CASE),
+                Regex("""app\.base44\.com/apps/([0-9a-fA-F]{24})""", RegexOption.IGNORE_CASE),
+                Regex("""([0-9a-fA-F]{24})""")
+            )
+            for (p in patterns) {
+                val m = p.find(s)
+                if (m != null) return m.groupValues[1]
+            }
+            return null
+        }
+    }
+
     private fun normalizePageUrl(input: String): String {
         var u = input.trim()
         if (!u.startsWith("http://", true) && !u.startsWith("https://", true)) {

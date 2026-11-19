@@ -6,6 +6,8 @@ Android-приложение для извлечения иконок по ад�
 
 - Ввод адреса приложения (URL) с кнопкой **Вставить** из буфера обмена.
 - Извлечение иконок из:
+  - **Teable** — все вложения-изображения базы по API-токену (`teable_...`): база, таблицы, поля-вложения, подпись приватных URL;
+  - **Base44** — вся медиатека приложения по API-ключу (Apps API, `List assets`);
   - `manifest.webmanifest` / `<link rel="manifest">` (`icons`);
   - `<link rel="icon">`, `<link rel="apple-touch-icon">` и похожих;
   - `<meta property="og:image">`, `<meta name="twitter:image">`;

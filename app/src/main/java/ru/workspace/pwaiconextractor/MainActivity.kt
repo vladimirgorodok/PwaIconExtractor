@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Image
@@ -61,6 +62,7 @@ class MainActivity : ComponentActivity() {
 
 class MainViewModel : ViewModel() {
     var appUrl by mutableStateOf("")
+    var apiKey by mutableStateOf("")
     var icons = mutableStateListOf<IconItem>()
     var logs = mutableStateListOf<LogEntry>()
     var saveTreeUri by mutableStateOf<Uri?>(null)
@@ -101,6 +103,65 @@ class MainViewModel : ViewModel() {
             icons.addAll(result)
             isBusy = false
             setStatus(if (result.isEmpty()) "Иконки не найдены" else "Найдено: ${result.size}")
+        }
+    }
+
+    fun loadLibrary() {
+        val key = apiKey.trim()
+        if (key.startsWith("teable_", ignoreCase = true)) {
+            loadTeableLibrary(key)
+        } else {
+            loadBase44Library(key)
+        }
+    }
+
+    private fun loadTeableLibrary(token: String) {
+        if (isBusy) return
+        viewModelScope.launch {
+            isBusy = true
+            setStatus("Вложения Teable...")
+            icons.clear()
+            logs.clear()
+            appendLog("Загрузка всех изображений из Teable по API-токену")
+            val result = withContext(Dispatchers.IO) {
+                TeableExtractor(
+                    log = { msg, err, ok -> appendLog(msg, err, ok) }
+                ).extract(appUrl, token)
+            }
+            icons.clear()
+            icons.addAll(result)
+            isBusy = false
+            setStatus(if (result.isEmpty()) "Ничего не загружено" else "Найдено: ${result.size}")
+        }
+    }
+
+    fun loadBase44Library() {
+        val key = apiKey.trim()
+        val appId = IconExtractor.extractAppId(appUrl)
+        if (key.isBlank()) {
+            appendLog("Введите API-ключ Base44", isError = true)
+            return
+        }
+        if (appId == null) {
+            appendLog("Не удалось определить app_id из адреса. Вставьте ссылку на файл media.base44.com/... или сам 24-символьный ID", isError = true)
+            return
+        }
+        if (isBusy) return
+        viewModelScope.launch {
+            isBusy = true
+            setStatus("Медиатека Base44...")
+            icons.clear()
+            logs.clear()
+            appendLog("Загрузка всей медиатеки Base44")
+            val result = withContext(Dispatchers.IO) {
+                IconExtractor(
+                    log = { msg, err, ok -> appendLog(msg, err, ok) }
+                ).extractBase44Assets(appId, key)
+            }
+            icons.clear()
+            icons.addAll(result)
+            isBusy = false
+            setStatus(if (result.isEmpty()) "Ничего не загружено" else "Найдено: ${result.size}")
         }
     }
 
@@ -225,12 +286,30 @@ fun MainScreen(vm: MainViewModel = viewModel()) {
                 }
                 Button(
                     onClick = { vm.extract() },
-                    enabled = !vm.isBusy && vm.appUrl.isNotBlank()
+                    enabled = !vm.isBusy && vm.appUrl.isNotBlank(),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.Search, contentDescription = null)
                     Spacer(Modifier.width(6.dp))
-                    Text("Извлечь")
+                    Text("Извлечь", maxLines = 1, softWrap = false)
                 }
+            }
+            OutlinedTextField(
+                value = vm.apiKey,
+                onValueChange = { vm.apiKey = it },
+                label = { Text("API-токен (Teable / Base44)") },
+                placeholder = { Text("teable_... или ключ Base44") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Button(
+                onClick = { vm.loadLibrary() },
+                enabled = !vm.isBusy && vm.apiKey.isNotBlank(),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.CloudDownload, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("Загрузить всю медиатеку")
             }
 
             // Save path
